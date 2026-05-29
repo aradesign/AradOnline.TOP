@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model PortfolioProject {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  category      String
+  city          String
+  excerpt       String?
+  content       String
+  coverGradient String   @default("from-teal-500/20 to-cyan-500/20")
+  thumbnailUrl  String?
+  screenshotUrl String?
+  galleryImages String?
+  clientName    String?
+  projectUrl    String?
+  services      String?
+  year          String?
+  published     Boolean  @default(true)
+  featured      Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ClientLogo {
+  id         String   @id @default(cuid())
+  name       String
+  logoUrl    String
+  websiteUrl String?
+  published  Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  city      String
+  text      String
+  rating    Int      @default(5)
+  published Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model FormSubmission {
+  id           String   @id @default(cuid())
+  fullName     String
+  phone        String
+  city         String
+  businessType String
+  message      String?
+  read         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
