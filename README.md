@@ -1,83 +1,125 @@
 # آراد وب (Arad Web)
 
-لندینگ‌پیج + **CMS اختصاصی** برای مدیریت نمونه‌کارها، نظرات، تنظیمات و فرم‌های تماس.
+لندینگ‌پیج + **CMS اختصاصی** — نمونه‌کار، لوگوی مشتریان، نظرات، تنظیمات تم/فونت، فرم تماس.
+
+**ریپازیتوری:** https://github.com/aradesign/AradOnline.TOP
+
+---
+
+## استقرار روی VPS (توصیه‌شده)
+
+همهٔ مراحل نصب، به‌روزرسانی، دامنه، SSL و عیب‌یابی در یک فایل:
+
+### [DEPLOY.md](./DEPLOY.md)
+
+### نصب یک‌خطی روی سرور خام
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aradesign/AradOnline.TOP/main/scripts/vps-install.sh | sudo bash
+```
+
+- سایت: `http://IP-سرور`  
+- ادمین: `http://IP-سرور/admin`  
+- پسورد ادمین: **فقط در ترمینال سرور** هنگام نصب اول چاپ می‌شود (فایل `.env` روی سرور).
+
+### به‌روزرسانی بعد از `git push`
+
+```bash
+cd /var/www/AradOnline.TOP && ./scripts/deploy.sh
+```
+
+---
+
+## توسعه محلی
+
+```bash
+git clone https://github.com/aradesign/AradOnline.TOP.git
+cd AradOnline.TOP
+cp .env.example .env
+# ADMIN_PASSWORD و SESSION_SECRET را در .env تنظیم کنید
+npm install
+npm run db:push
+npm run db:seed    # اختیاری
+npm run dev
+```
+
+| آدرس | |
+|------|--|
+| سایت | http://localhost:3000 |
+| پنل | http://localhost:3000/admin |
+
+---
 
 ## Tech Stack
 
 - Next.js 15 (App Router)
 - Prisma + SQLite
 - Tailwind CSS + Framer Motion
-- پنل مدیریت `/admin`
+- تم روشن/تاریک + CMS رنگ و فونت
 
-## راه‌اندازی
+---
 
-```bash
-npm install
-npm run db:push    # ساخت دیتابیس
-npm run db:seed    # داده تستی
-npm run dev
-```
+## پنل مدیریت
 
-- **سایت:** http://localhost:3000
-- **پنل مدیریت:** http://localhost:3000/admin
-- **ورود پیش‌فرض:** `arad1404` (در `.env` → `ADMIN_PASSWORD`)
+| بخش | مسیر |
+|-----|------|
+| داشبورد | `/admin` |
+| نمونه‌کارها | `/admin/portfolio` — تامبنیل، اسکرین‌شات، گالری |
+| لوگوی مشتریان | `/admin/clients` — کروسل صفحه اصلی |
+| نظرات | `/admin/testimonials` |
+| فرم‌ها | `/admin/submissions` |
+| تنظیمات | `/admin/settings` |
 
-## پنل مدیریت (CMS)
-
-| بخش | مسیر | امکانات |
-|-----|------|---------|
-| داشبورد | `/admin` | آمار و آخرین فرم‌ها |
-| نمونه‌کارها | `/admin/portfolio` | CRUD + تامبنیل، اسکرین‌شات، گالری تصاویر |
-| لوگوی مشتریان | `/admin/clients` | آپلود لوگو → کروسل صفحه اصلی |
-| نظرات | `/admin/testimonials` | CRUD |
-| فرم‌ها | `/admin/submissions` | لیست درخواست‌ها، خوانده/حذف |
-| تنظیمات | `/admin/settings` | تماس، Hero، پیشنهاد ویژه |
+---
 
 ## صفحات عمومی
 
-- `/` — لندینگ (داده از دیتابیس)
-- `/portfolio/[slug]` — قالب جزئیات هر نمونه‌کار
+- `/` — لندینگ
+- `/portfolio/[slug]` — جزئیات پروژه
 
-## استقرار روی VPS
-
-راهنمای کامل: [DEPLOY.md](./DEPLOY.md)
-
-```bash
-./scripts/deploy.sh   # pull + build + restart — دیتابیس و uploads حفظ می‌شوند
-```
-
-## ارسال به GitHub
-
-```bash
-# یک‌بار: ساخت ریپو در github.com و سپس:
-git remote add origin https://github.com/USERNAME/arad-web.git
-git push -u origin main
-```
-
-## ساختار
-
-```
-prisma/
-  schema.prisma
-  seed.ts
-  dev.db
-src/
-  app/
-    admin/          # پنل CMS
-    api/            # REST API
-    portfolio/[slug]/
-  components/admin/
-  lib/
-    prisma.ts
-    auth.ts
-    cms.ts
-    settings.ts
-```
+---
 
 ## متغیرهای محیطی
 
-```env
-DATABASE_URL="file:./dev.db"
-ADMIN_PASSWORD="arad1404"
-SESSION_SECRET="random-secret"
+نمونه در `.env.example` (کپی به `.env`). **فایل `.env` commit نشود.**
+
+| متغیر | کاربرد |
+|--------|--------|
+| `DATABASE_URL` | مسیر SQLite |
+| `ADMIN_PASSWORD` | ورود پنل `/admin` |
+| `SESSION_SECRET` | امضای کوکی نشست (۳۲+ کاراکتر تصادفی) |
+| `PORT` | پورت داخلی Next (پیش‌فرض 3000؛ Nginx روی 80) |
+| `NODE_ENV` | `production` روی سرور |
+
+---
+
+## اسکریپت‌ها
+
+| اسکریپت | کاربرد |
+|---------|--------|
+| `scripts/vps-install.sh` | نصب کامل از GitHub (یک‌خطی بالا) |
+| `scripts/deploy.sh` | `git pull` + build + restart |
+| `scripts/vps-fix.sh` | رفع 404/502 |
+| `npm run dev` | توسعه |
+| `npm run build` | بیلد production |
+
+---
+
+## ساختار پروژه
+
 ```
+prisma/           schema + seed
+src/app/          صفحات و API
+src/components/   UI + admin + sections
+src/lib/          prisma, auth, cms, settings
+deploy/           پیکربندی Nginx
+scripts/          نصب و deploy
+data/             دیتابیس production (روی سرور، خارج از git)
+public/uploads/   فایل‌های آپلود (خارج از git)
+```
+
+---
+
+## مجوز و مشارکت
+
+پروژه خصوصی آراد وب — تغییرات را از طریق GitHub و deploy روی VPS منتشر کنید.

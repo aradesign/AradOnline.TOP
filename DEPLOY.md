@@ -1,45 +1,97 @@
-# استقرار آراد وب روی VPS (سرور خام)
+# راهنمای استقرار روی VPS (GitHub)
 
-ریپو: https://github.com/aradesign/AradOnline.TOP
+**ریپازیتوری:** https://github.com/aradesign/AradOnline.TOP
 
-## ایده کلی
-
-| لایه | پورت | توضیح |
-|------|------|--------|
-| **Nginx** | **80** | همان چیزی که در مرورگر می‌زنید: `http://IP-سرور` |
-| Next.js (PM2) | 3000 | فقط داخل سرور — از بیرون باز نیست |
-
-بعداً دامنه را به IP سرور وصل می‌کنید؛ فقط `server_name` در Nginx را عوض می‌کنید.
+این سند تمام مراحل نصب روی سرور لینوکس (Ubuntu/Debian) را پوشش می‌دهد.  
+**هیچ رمز یا secret واقعی در گیت ذخیره نمی‌شود** — فقط روی سرور در فایل `.env` (خارج از گیت).
 
 ---
 
-## ۱) اتصال SSH و به‌روزرسانی
+## نصب یک‌خطی (سرور خام)
+
+با SSH به سرور وصل شوید (`root` یا کاربری با `sudo`) و **فقط این دستور** را اجرا کنید:
 
 ```bash
-ssh root@YOUR_SERVER_IP
+curl -fsSL https://raw.githubusercontent.com/aradesign/AradOnline.TOP/main/scripts/vps-install.sh | sudo bash
+```
+
+اسکریپت به‌ترتیب انجام می‌دهد:
+
+1. به‌روزرسانی سیستم  
+2. نصب Node.js 20، Git، Nginx، PM2  
+3. باز کردن پورت‌های 22، 80، 443 در فایروال (در صورت وجود UFW)  
+4. کلون پروژه در `/var/www/AradOnline.TOP`  
+5. ساخت `.env` (فقط بار اول) و **چاپ پسورد ادمین در همان ترمینال سرور**  
+6. `npm ci` → Prisma → `build`  
+7. اجرا با PM2  
+8. تنظیم Nginx روی **پورت 80**
+
+بعد از اتمام:
+
+| آدرس | توضیح |
+|------|--------|
+| `http://IP-سرور` | سایت عمومی |
+| `http://IP-سرور/admin` | پنل CMS |
+
+پسورد ورود ادمین: در **خروجی همان ترمینال** و در `/var/www/AradOnline.TOP/.env` (کلید `ADMIN_PASSWORD`).  
+آن را یادداشت کنید و در گیت یا تیکت عمومی نگذارید.
+
+---
+
+## معماری
+
+```
+مرورگر  →  :80  →  Nginx  →  :3000  →  Next.js (PM2)
+                              ↑
+                         فقط داخل سرور
+```
+
+- کاربر **هرگز** `:3000` را در مرورگر نمی‌زند.  
+- بعداً دامنه را به IP وصل می‌کنید؛ Nginx همان می‌ماند.
+
+---
+
+## پیش‌نیازها
+
+| مورد | نسخه / توضیح |
+|------|----------------|
+| سیستم‌عامل | Ubuntu 22.04+ یا Debian 12+ |
+| RAM | حداقل ۱ گیگ (۲ گیگ راحت‌تر) |
+| دسترسی | SSH با root یا sudo |
+| دامنه | اختیاری — در نصب اول فقط IP کافی است |
+
+---
+
+## نصب دستی (گام‌به‌گام)
+
+اگر اسکریپت یک‌خطی را نمی‌خواهید:
+
+### ۱) اتصال و به‌روزرسانی
+
+```bash
+ssh root@IP-سرور
 apt update && apt upgrade -y
 ```
 
-## ۲) نصب Node.js 20، Git، Nginx
+### ۲) Node.js 20، Git، Nginx، PM2
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs git nginx
-node -v   # باید v20.x باشد
-npm i -g pm2
+apt install -y nodejs git nginx curl
+node -v    # v20.x
+npm install -g pm2
 ```
 
-## ۳) فایروال (پورت 80 و 22)
+### ۳) فایروال
 
 ```bash
 ufw allow OpenSSH
 ufw allow 80/tcp
-ufw allow 443/tcp   # برای SSL بعداً
+ufw allow 443/tcp
 ufw enable
-ufw status
 ```
 
-## ۴) کلون پروژه
+### ۴) کلون از GitHub
 
 ```bash
 mkdir -p /var/www
@@ -48,81 +100,75 @@ git clone https://github.com/aradesign/AradOnline.TOP.git
 cd AradOnline.TOP
 ```
 
-## ۵) تنظیم `.env`
+### ۵) فایل محیط (`.env`)
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-محتوای پیشنهادی production:
+مقادیر production (نمونه — **مقادیر واقعی را خودتان انتخاب کنید**):
 
 ```env
 DATABASE_URL="file:../data/prod.db"
-ADMIN_PASSWORD="یک-پسورد-قوی-برای-ادمین"
-SESSION_SECRET="حداقل-۳۲-کاراکتر-تصادفی-مثلا-openssl-rand-hex-32"
+ADMIN_PASSWORD="<پسورد-قوی-ادمین>"
+SESSION_SECRET="<رشته-تصادفی-۳۲+-کاراکتر>"
 PORT=3000
 NODE_ENV=production
 ```
 
-تولید `SESSION_SECRET`:
+تولید مقدار تصادفی برای `SESSION_SECRET`:
 
 ```bash
 openssl rand -hex 32
 ```
 
-## ۶) دیتابیس، بیلد، اجرا
+> فایل `.env` در `.gitignore` است و هرگز نباید commit شود.
+
+### ۶) دیتابیس، بیلد، اجرا
 
 ```bash
 mkdir -p data public/uploads/images public/uploads/fonts
+export NODE_OPTIONS=--max-old-space-size=768
 npm ci
+npx prisma generate
 npx prisma db push
-npm run db:seed    # اختیاری — داده نمونه
+npm run db:seed          # اختیاری — فقط بار اول
 npm run build
 pm2 start ecosystem.config.cjs
 pm2 save
-pm2 startup        # دستور خروجی را یک‌بار اجرا کنید
+pm2 startup              # دستور چاپ‌شده را یک‌بار اجرا کنید
 ```
 
-بررسی:
+بررسی اپ:
 
 ```bash
-pm2 status
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000
-# باید 200 بدهد
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:3000/
+# انتظار: HTTP 200
 ```
 
-## ۷) Nginx — دسترسی مستقیم با IP (پورت 80)
+### ۷) Nginx (پورت 80)
 
 ```bash
-cp /var/www/AradOnline.TOP/deploy/nginx-arad.conf /etc/nginx/sites-available/arad
+cp deploy/nginx-arad.conf /etc/nginx/sites-available/arad
 ln -sf /etc/nginx/sites-available/arad /etc/nginx/sites-enabled/arad
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
+systemctl enable nginx
 systemctl reload nginx
 ```
 
-در مرورگر: **http://YOUR_SERVER_IP** (بدون `:3000`)
-
-## ۸) بعداً — اتصال دامنه
-
-1. در DNS، رکورد `A` دامنه → IP سرور  
-2. ویرایش `/etc/nginx/sites-available/arad`:
-
-```nginx
-server_name aradonline.top www.aradonline.top;
-```
-
-3. SSL رایگان:
+بررسی از بیرون:
 
 ```bash
-apt install -y certbot python3-certbot-nginx
-certbot --nginx -d aradonline.top -d www.aradonline.top
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1/
 ```
 
 ---
 
-## به‌روزرسانی (بدون از دست دادن داده)
+## به‌روزرسانی بعد از تغییرات گیت
+
+روی سرور (داده‌ها حفظ می‌شوند):
 
 ```bash
 cd /var/www/AradOnline.TOP
@@ -130,24 +176,112 @@ chmod +x scripts/deploy.sh
 ./scripts/deploy.sh
 ```
 
-حفظ می‌شود: `data/prod.db`، `public/uploads/`، `.env`
+یا یک‌خطی:
 
-## پنل ادمین
+```bash
+curl -fsSL https://raw.githubusercontent.com/aradesign/AradOnline.TOP/main/scripts/vps-fix.sh | sudo bash
+```
 
-- `http://YOUR_SERVER_IP/admin` (یا بعداً با دامنه)
-- ورود: همان `ADMIN_PASSWORD` در `.env`
+### چه چیزهایی حفظ می‌شوند؟
+
+| مسیر | محتوا |
+|------|--------|
+| `data/prod.db` | دیتابیس SQLite |
+| `public/uploads/` | تصاویر و فونت‌های آپلودشده |
+| `.env` | رمز ادمین و تنظیمات محرمانه |
+
+### چه چیزهایی از گیت می‌آید؟
+
+کد برنامه، وابستگی‌ها (`npm ci`)، بیلد جدید (`.next`).
+
+---
+
+## اتصال دامنه + SSL (بعداً)
+
+1. در DNS: رکورد `A` → IP سرور  
+2. ویرایش `/etc/nginx/sites-available/arad` — خط `server_name`:
+
+```nginx
+server_name example.com www.example.com;
+```
+
+3. گواهی رایگان:
+
+```bash
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d example.com -d www.example.com
+```
+
+---
+
+## پنل مدیریت (CMS)
+
+| مسیر | کاربرد |
+|------|--------|
+| `/admin` | ورود و داشبورد |
+| `/admin/portfolio` | نمونه‌کار + تامبنیل + اسکرین‌شات + گالری |
+| `/admin/clients` | لوگوی مشتریان (کروسل) |
+| `/admin/settings` | رنگ، فونت، تماس، Hero |
+| `/admin/submissions` | فرم‌های تماس |
+
+ورود: مقدار `ADMIN_PASSWORD` در `.env` روی سرور.
+
+---
 
 ## عیب‌یابی
 
-```bash
-pm2 logs arad-web
-journalctl -u nginx -n 50
-```
-
-اگر سایت بالا نیامد:
+### سایت 404 یا 502
 
 ```bash
 cd /var/www/AradOnline.TOP
-pm2 restart arad-web
-systemctl status nginx
+pm2 status
+pm2 logs arad-web --lines 40
+curl -I http://127.0.0.1:3000
+curl -I http://127.0.0.1
 ```
+
+رفع خودکار (بیلد + PM2 + Nginx):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aradesign/AradOnline.TOP/main/scripts/vps-fix.sh | sudo bash
+```
+
+### لاگ‌ها
+
+```bash
+pm2 logs arad-web
+journalctl -u nginx -n 50 --no-pager
+```
+
+### ری‌استارت سریع
+
+```bash
+pm2 restart arad-web
+systemctl reload nginx
+```
+
+---
+
+## توسعه محلی (مرجع)
+
+```bash
+git clone https://github.com/aradesign/AradOnline.TOP.git
+cd AradOnline.TOP
+cp .env.example .env
+# ویرایش .env برای محیط local
+npm install
+npm run db:push
+npm run db:seed
+npm run dev
+```
+
+جزئیات بیشتر: [README.md](./README.md)
+
+---
+
+## امنیت
+
+- `.env` را commit نکنید.  
+- پسورد ادمین را فقط روی سرور نگه دارید.  
+- بعد از نصب، در صورت نیاز `ADMIN_PASSWORD` را در `.env` عوض کنید و `pm2 restart arad-web` بزنید.  
+- برای production حتماً `SESSION_SECRET` تصادفی و طولانی استفاده کنید.
