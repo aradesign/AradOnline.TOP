@@ -79,7 +79,6 @@ env PATH="$PATH:/usr/bin" pm2 startup systemd -u root --hp /root 2>/dev/null | t
 
 echo "==> Nginx (پورت 80)"
 cp -f deploy/nginx-arad.conf /etc/nginx/sites-available/arad
-ln -sf /etc/nginx/sites-available/arad /etc/nginx/sites-available/arad
 ln -sf /etc/nginx/sites-available/arad /etc/nginx/sites-enabled/arad
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
