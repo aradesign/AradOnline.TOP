@@ -67,14 +67,27 @@ else
 fi
 
 echo "==> نصب وابستگی‌ها و بیلد"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}"
 npm ci
+npx prisma generate
 npx prisma db push
 npm run build
+
+if [[ ! -d .next ]]; then
+  echo "خطا: بیلد ناموفق — پوشه .next وجود ندارد."
+  exit 1
+fi
 
 echo "==> PM2"
 pm2 delete arad-web 2>/dev/null || true
 pm2 start ecosystem.config.cjs
 pm2 save
+sleep 3
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || echo "000")
+if [[ "$HTTP_CODE" != "200" ]]; then
+  echo "هشدار: اپ روی 3000 پاسخ $HTTP_CODE داد — pm2 logs arad-web"
+  pm2 logs arad-web --lines 20 --nostream || true
+fi
 env PATH="$PATH:/usr/bin" pm2 startup systemd -u root --hp /root 2>/dev/null | tail -1 | bash || true
 
 echo "==> Nginx (پورت 80)"
